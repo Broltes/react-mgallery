@@ -1,6 +1,6 @@
 {
   "name": "react-mgallery",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "React component for mobile web gallery",
   "main": "./lib/react-mgallery.js",
   "scripts": {
