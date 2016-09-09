@@ -3,17 +3,17 @@ import './style.less';
 
 // 全屏视窗
 let _viewSize = { w: window.innerWidth, h: window.innerHeight },
-    _viewBasePoint = { x: _viewSize.w/2, y: _viewSize.h/2 };
+    _viewCenterPoint = { x: _viewSize.w/2, y: _viewSize.h/2 };
 
-let _items = {},
-    _scrollingY,
-    _scrollingX,
+let _direction,// 'x', 'y', 0
     _initialDistance,
     _initialScale,
     _initialScalerX,
     _initialScalerY,
     _initialCenterPoint,
     _lastCenterPoint;
+
+const DIRECTION_CHECK_OFFSET = 9;
 
 
 // 计算两点间距
@@ -61,8 +61,8 @@ function _calculateBounds(destScale, item) {
 export default React.createClass({
     getDefaultProps: function () {
         return {
-            gap: 20,// 切换过程中相邻图片的间隙
-            actionDistance: 60,// 触发切换图片需要拖拽的距离
+            gap: 30,// 切换过程中相邻图片的间隙
+            actionDistance: 50,// 触发切换图片需要拖拽的距离
 
             currentIndex: 0,
             maxScale: 2,
@@ -76,6 +76,7 @@ export default React.createClass({
         return {
             currentIndex: this.props.currentIndex || 0,
             lazyImgs: {},
+            imgData: {},
 
             x0: 0,// x轴滑动偏移量
             scale: 1,
@@ -100,7 +101,8 @@ export default React.createClass({
             _initialCenterPoint = p1;
         }
 
-        _scrollingY = _scrollingX = 0;
+        _direction = 0;
+        _lastCenterPoint = _viewCenterPoint;// tap聚焦效果
         _initialScale = scale;
         _initialScalerX = scalerX;
         _initialScalerY = scalerY;
@@ -125,16 +127,17 @@ export default React.createClass({
             this.applyScale(destScale);
         } else {
             // 滑动
-            const { scale, currentIndex } = this.state;
-            const { gap } = this.props;
+            const { scale, currentIndex, imgData } = this.state;
+            const { gap, imgs } = this.props;
             let scalerX = p1.x - _initialCenterPoint.x + _initialScalerX;
             let scalerY = p1.y - _initialCenterPoint.y + _initialScalerY;
-            let { minX, minY, maxX, maxY } = _calculateBounds(scale, _items[currentIndex]);
+            let item = imgData[currentIndex];
+            let { minX, minY, maxX, maxY } = _calculateBounds(scale, item);
             let x0 = 0;
 
+            // 限制图片间间隙
             minX -= gap;
             maxX += gap;
-
             if(scalerX > maxX) {
                 x0 = scalerX - maxX;
                 scalerX = maxX;
@@ -144,25 +147,38 @@ export default React.createClass({
                 scalerX = minX;
             }
 
+            // 第一张图限制右划切换
+            if(currentIndex == 0) x0 = Math.min(0, x0);
+            // 最后一张图限制左划切换
+            else if(currentIndex == imgs.length - 1) x0 = Math.max(0, x0);
+
             // 应用边界
             scalerY = _limit(minY, scalerY, maxY);
             let nextState = {x0, scalerX, scalerY};
 
-            // 未缩放
-            if(scale == 1) {
-                let deltaX = Math.abs(scalerX - _initialScalerX);
-                let deltaY = Math.abs(scalerY - _initialScalerY);
-                let directionDistance = 6;
+            // 水平切换发生的阈值
+            if(Math.abs(scalerX) < DIRECTION_CHECK_OFFSET) {
+                nextState.scalerX = 0;
+            }
 
-                if(_scrollingX || !_scrollingY && (_scrollingX = deltaX > directionDistance)) {
+            // 未缩放
+            if(scale == 1 && item.long) {
+                // 判断滚动方向
+                if(!_direction) {
+                    let deltaX = Math.abs(scalerX - _initialScalerX);
+                    let deltaY = Math.abs(scalerY - _initialScalerY);
+
+                    if(deltaY > DIRECTION_CHECK_OFFSET) _direction = 'y';
+                    else if(deltaX > DIRECTION_CHECK_OFFSET) _direction = 'x';
+                }
+
+                if(_direction == 'x') {
                     // 发生水平滚动时，限制垂直移动
                     delete nextState.scalerY;
                 }
-
-                if(_scrollingY || !_scrollingX && (_scrollingY = deltaY > directionDistance)) {
+                else if (_direction == 'y') {
                     // 发生垂直滚动时，限制水平移动
-                    delete nextState.x0;
-                    delete nextState.scalerX;
+                    nextState.scalerX = nextState.x0 = 0;
                 }
             }
 
@@ -170,8 +186,8 @@ export default React.createClass({
         }
     },
     touchEnd(e) {
-        const { scale, currentIndex, x0} = this.state;
-        const { maxScale, minScale, actionDistance } = this.props;
+        const { scale, currentIndex, x0, imgData } = this.state;
+        const { maxScale, minScale, actionDistance, imgs } = this.props;
         let { touches } = e;
 
         if(touches.length) {
@@ -179,26 +195,40 @@ export default React.createClass({
             this.init(touches);
         } else {
             // 触摸结束
-            let nextState = { transition: 1, currentIndex };
-            let destScale = _limit(minScale, scale, maxScale);
-            let bounds = _calculateBounds(destScale, _items[currentIndex]);
+            let transition = 1;
+            let nextIndex = currentIndex;
 
-            if(x0 < -actionDistance) {
-                nextState.currentIndex++;
-            }
-            else if(x0 > actionDistance) {
-                nextState.currentIndex--;
-            }
+            // 判断切换图片
+            if(x0 < -actionDistance) nextIndex++;
+            else if(x0 > actionDistance) nextIndex--;
+            nextIndex = _limit(0, nextIndex, imgs.length - 1);
 
-            this.applyScale(destScale, bounds);
-            this.setState(nextState);
+            if(nextIndex != currentIndex) {
+                // 切换
+                this.setState({
+                    transition,
+                    currentIndex: nextIndex,
+                    // 重置
+                    scale: 1,
+                    scalerX: 0,
+                    scalerY: 0,
+                    x0: 0,
+                });
+                this.preLoadImg();
+            } else {
+                // 应用缩放及滑动边界
+                let destScale = _limit(minScale, scale, maxScale);
+                let bounds = _calculateBounds(destScale, imgData[currentIndex]);
+                this.applyScale(destScale, bounds, transition);
+            }
         }
     },
 
-    applyScale(destScale, bounds) {
-        let item = _items[this.state.currentIndex];
-        let baseY = item.long ? item.h / 2 : _viewBasePoint.y;
-        let baseX = _viewBasePoint.x;
+    applyScale(destScale, bounds, transition) {
+        const { imgData, currentIndex } = this.state;
+        let item = imgData[currentIndex];
+        let baseY = item.long ? item.h / 2 : _viewCenterPoint.y;
+        let baseX = _viewCenterPoint.x;
 
         // 计算缩放补偿量
         // 触摸中点移动距离 - 缩放导致的触摸中点偏移量
@@ -219,25 +249,29 @@ export default React.createClass({
             scale: destScale,
             scalerX,
             scalerY,
-            x0: 0
+            x0: 0,
+            transition
         });
     },
 
-    preLoadImg() {
+    preLoadImg(index) {
         const { currentIndex, lazyImgs } = this.state;
-        let _lazyImgs = {};
-        let nextIndex = Math.min(this.props.imgs.length - 1, currentIndex + 1);
-        let prevIndex = Math.max(0, currentIndex - 1);
+        index = index || currentIndex;
 
-        _lazyImgs[currentIndex] = 1;
+        let _lazyImgs = {};
+        let nextIndex = Math.min(this.props.imgs.length - 1, index + 1);
+        let prevIndex = Math.max(0, index - 1);
+
+        _lazyImgs[index] = 1;
         _lazyImgs[prevIndex] = 1;
         _lazyImgs[nextIndex] = 1;
 
         this.setState({ lazyImgs: Object.assign({}, lazyImgs, _lazyImgs)});
     },
     imgLoaded(e, i) {
-        if(_items[i]) return;
-        if(i == this.state.currentIndex) this.props.onLoaded();
+        const { imgData, currentIndex } = this.state;
+        if(imgData[i]) return;
+        if(i == currentIndex) this.props.onLoaded();
 
         // 记录图片初始尺寸
         let img = e.target;
@@ -246,20 +280,26 @@ export default React.createClass({
         let long = fitH > _viewSize.h;
 
         if(long) {
-            height = _viewSize.w * height / width;
-            width = _viewSize.w;
+            width = Math.min(naturalWidth, _viewSize.w);
+            height = width * naturalHeight / naturalWidth;
         }
 
-        _items[i] = {
-            w: width,
-            h: height,
-            long,
-            fixX: long ? (height - _viewSize.h) / 2 : 0,// 长图修复置顶
-        }
+        this.setState({
+            imgData: Object.assign({
+                [i] : {
+                    w: width,
+                    h: height,
+                    long
+                }
+            }, imgData)
+        });
     },
     render(){
         var { imgs } = this.props;
-        var { currentIndex, lazyImgs, x0, scale, scalerX, scalerY, transition } = this.state;
+        var {
+            currentIndex, x0, scale, scalerX, scalerY,
+            transition, lazyImgs, imgData
+        } = this.state;
         var { touchStart, touchMove, touchEnd, imgLoaded } = this;
 
         return (
@@ -274,16 +314,12 @@ export default React.createClass({
                     }}>
 
                     { imgs.map((img, i) => {
-                        let item = _items[i];
+                        let item = imgData[i];
                         let scalerStyle = (i == currentIndex) && item ? {
                             WebkitTransform: `translate3d(${scalerX}px,${scalerY}px,0) scale(${scale})`
                         } : null;
-                        let itemClass = 'mgallery-item';
-
-                        if(i == currentIndex) {
-                            itemClass += ' current ';
-                            itemClass += item && item.long ? 'long' : 'normal';
-                        }
+                        let itemClass = 'mgallery-item ';
+                        if(item && item.long) itemClass += 'long';
 
                         return (
                             <div key={i} className={itemClass}>

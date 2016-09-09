@@ -16,7 +16,7 @@
         height: 100%;
         overflow: hidden;
 
-        &.normal{
+        &:not(.long){
             display: flex;
             align-items: center;
             justify-content: center;
@@ -29,7 +29,10 @@
 
         &.long{
             img{
-                width: 100%;
+                max-width: 100%;
+                display: block;
+                margin: 0 auto;
+                // width: 100%;
             }
         }
     }
@@ -61,7 +64,7 @@
 .transition {
     .mgallery {
         &-scaler, &-container {
-            transition: transform .3s;
+            transition: transform .5s;
         }
     }
 }
