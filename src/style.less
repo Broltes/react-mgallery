@@ -15,6 +15,13 @@
         flex: 1;
         height: 100%;
         overflow: hidden;
+        transform: translate3d(0,0,0);// 优化安卓图片闪烁
+
+        img {
+            display: block;
+            max-width: 100%;
+            margin: 0 auto;
+        }
 
         &:not(.long){
             display: flex;
@@ -22,17 +29,7 @@
             justify-content: center;
 
             img{
-                max-width: 100%;
                 max-height: 100%;
-            }
-        }
-
-        &.long{
-            img{
-                max-width: 100%;
-                display: block;
-                margin: 0 auto;
-                // width: 100%;
             }
         }
     }
@@ -64,7 +61,7 @@
 .transition {
     .mgallery {
         &-scaler, &-container {
-            transition: transform .5s;
+            transition: transform .3s ease;
         }
     }
 }

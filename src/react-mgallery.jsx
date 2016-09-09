@@ -36,7 +36,7 @@ function _limit(min, val, max){
     return Math.max(min, Math.min(max, val));
 }
 // 计算图片缩放后的尺寸超出视窗边界
-function _calculateBounds(destScale, item) {
+function _calculateBounds(destScale, item = _viewSize) {
     let delta = {
         x: (item.w * destScale - _viewSize.w) / 2,
         y: (item.h * destScale - _viewSize.h) / 2
@@ -62,7 +62,7 @@ export default React.createClass({
     getDefaultProps: function () {
         return {
             gap: 30,// 切换过程中相邻图片的间隙
-            actionDistance: 50,// 触发切换图片需要拖拽的距离
+            actionDistance: 10,// 触发切换图片需要拖拽的距离
 
             currentIndex: 0,
             maxScale: 2,
@@ -108,6 +108,7 @@ export default React.createClass({
         _initialScalerY = scalerY;
     },
     touchStart(e) {
+        e.preventDefault();
         this.init(e.touches);
     },
     touchMove(e) {
@@ -150,7 +151,7 @@ export default React.createClass({
             // 第一张图限制右划切换
             if(currentIndex == 0) x0 = Math.min(0, x0);
             // 最后一张图限制左划切换
-            else if(currentIndex == imgs.length - 1) x0 = Math.max(0, x0);
+            if(currentIndex == imgs.length - 1) x0 = Math.max(0, x0);
 
             // 应用边界
             scalerY = _limit(minY, scalerY, maxY);
@@ -162,7 +163,7 @@ export default React.createClass({
             }
 
             // 未缩放
-            if(scale == 1 && item.long) {
+            if(scale == 1 && item && item.long) {
                 // 判断滚动方向
                 if(!_direction) {
                     let deltaX = Math.abs(scalerX - _initialScalerX);
@@ -279,10 +280,8 @@ export default React.createClass({
         let fitH = _viewSize.w / naturalWidth * naturalHeight;// 适应屏幕宽度后的高度
         let long = fitH > _viewSize.h;
 
-        if(long) {
-            width = Math.min(naturalWidth, _viewSize.w);
-            height = width * naturalHeight / naturalWidth;
-        }
+        width = Math.min(naturalWidth, _viewSize.w);
+        height = width * naturalHeight / naturalWidth;
 
         this.setState({
             imgData: Object.assign({
@@ -297,8 +296,8 @@ export default React.createClass({
     render(){
         var { imgs } = this.props;
         var {
-            currentIndex, x0, scale, scalerX, scalerY,
-            transition, lazyImgs, imgData
+            x0, scale, scalerX, scalerY,
+            currentIndex, transition, lazyImgs, imgData
         } = this.state;
         var { touchStart, touchMove, touchEnd, imgLoaded } = this;
 
@@ -310,14 +309,14 @@ export default React.createClass({
 
                 <div className="mgallery-container" style={{
                         width: `${imgs.length * 100}%`,
-                        WebkitTransform: `translate3d(${x0 - currentIndex * _viewSize.w}px,0,0)`
+                        WebkitTransform: `translateX(${x0 - currentIndex * _viewSize.w}px)`
                     }}>
 
                     { imgs.map((img, i) => {
                         let item = imgData[i];
                         let scalerStyle = (i == currentIndex) && item ? {
                             WebkitTransform: `translate3d(${scalerX}px,${scalerY}px,0) scale(${scale})`
-                        } : null;
+                        } : {};
                         let itemClass = 'mgallery-item ';
                         if(item && item.long) itemClass += 'long';
 
