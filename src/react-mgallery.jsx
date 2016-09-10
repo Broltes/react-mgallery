@@ -294,12 +294,16 @@ export default React.createClass({
         });
     },
     render(){
-        var { imgs } = this.props;
-        var {
+        const { imgs } = this.props;
+        const {
             x0, scale, scalerX, scalerY,
             currentIndex, transition, lazyImgs, imgData
         } = this.state;
-        var { touchStart, touchMove, touchEnd, imgLoaded } = this;
+        const { touchStart, touchMove, touchEnd, imgLoaded } = this;
+
+        let scalerStyle = {
+            WebkitTransform: `translate3d(${scalerX}px,${scalerY}px,0) scale(${scale})`
+        };
 
         return (
             <div className={'mgallery' + (transition ? ' transition' : '')} ref="holder"
@@ -313,16 +317,15 @@ export default React.createClass({
                     }}>
 
                     { imgs.map((img, i) => {
-                        let item = imgData[i];
-                        let scalerStyle = (i == currentIndex) && item ? {
-                            WebkitTransform: `translate3d(${scalerX}px,${scalerY}px,0) scale(${scale})`
-                        } : {};
+                        let isCurrent = i == currentIndex;
+                        let style = isCurrent ? scalerStyle : {};
+                        let data = imgData[i];
                         let itemClass = 'mgallery-item ';
-                        if(item && item.long) itemClass += 'long';
+                        if(data && data.long) itemClass += 'long';
 
                         return (
-                            <div key={i} className={itemClass}>
-                                <div className="mgallery-scaler" style={scalerStyle}>
+                            <div className={itemClass}>
+                                <div className="mgallery-scaler" style={style}>
                                     { lazyImgs[i] ?
                                         <img src={img} onLoad={(e) => imgLoaded(e, i)}/>
                                     : null }
@@ -333,7 +336,7 @@ export default React.createClass({
                 </div>
 
                 <div className="mgallery-dots">
-                    { imgs.length > 1 ? imgs.map(function(img, i) {
+                    { imgs.length > 1 ? imgs.map((img, i) => {
                         return <i key={i} className={i == currentIndex ? 'on' : ''}/>;
                     }) : null }
                 </div>
