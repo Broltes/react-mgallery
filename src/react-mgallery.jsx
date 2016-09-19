@@ -108,7 +108,6 @@ export default React.createClass({
         _initialScalerY = scalerY;
     },
     touchStart(e) {
-        e.preventDefault();
         this.init(e.touches);
     },
     touchMove(e) {
@@ -187,8 +186,10 @@ export default React.createClass({
         }
     },
     touchEnd(e) {
-        const { scale, currentIndex, x0, imgData } = this.state;
-        const { maxScale, minScale, actionDistance, imgs } = this.props;
+        const {
+            state: { scale, currentIndex, x0, imgData },
+            props: { maxScale, minScale, actionDistance, imgs, onIndexChange }
+        } = this;
         let { touches } = e;
 
         if(touches.length) {
@@ -216,6 +217,8 @@ export default React.createClass({
                     x0: 0,
                 });
                 this.preLoadImg();
+
+                onIndexChange && onIndexChange(nextIndex);
             } else {
                 // 应用缩放及滑动边界
                 let destScale = _limit(minScale, scale, maxScale);
@@ -294,12 +297,14 @@ export default React.createClass({
         });
     },
     render(){
-        const { imgs } = this.props;
         const {
-            x0, scale, scalerX, scalerY,
-            currentIndex, transition, lazyImgs, imgData
-        } = this.state;
-        const { touchStart, touchMove, touchEnd, imgLoaded } = this;
+            props: { children, imgs },
+            state: {
+                x0, scale, scalerX, scalerY,
+                currentIndex, transition, lazyImgs, imgData
+            },
+            touchStart, touchMove, touchEnd, imgLoaded
+        } = this;
 
         let scalerStyle = {
             WebkitTransform: `translate3d(${scalerX}px,${scalerY}px,0) scale(${scale})`
@@ -324,7 +329,7 @@ export default React.createClass({
                         if(data && data.long) itemClass += 'long';
 
                         return (
-                            <div className={itemClass}>
+                            <div className={itemClass} key={i}>
                                 <div className="mgallery-scaler" style={style}>
                                     { lazyImgs[i] ?
                                         <img src={img} onLoad={(e) => imgLoaded(e, i)}/>
@@ -340,6 +345,8 @@ export default React.createClass({
                         return <i key={i} className={i == currentIndex ? 'on' : ''}/>;
                     }) : null }
                 </div>
+
+                {children}
             </div>
         );
     },

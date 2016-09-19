@@ -11,12 +11,29 @@ let imgs = [
 ];
 
 var App = React.createClass({
+    getInitialState() {
+        return {
+            currentIndex: 1
+        }
+    },
+    onIndexChange(currentIndex) {
+        this.setState({ currentIndex });
+    },
     render: function(){
+        const {
+            state: { currentIndex },
+            onIndexChange
+        } = this;
+
         return (
             <div>
-                <Gallery imgs={imgs} currentIndex={1}
+                <Gallery imgs={imgs} currentIndex={currentIndex}
+                    onIndexChange={onIndexChange}
                     onLoading={() => console.log('loading')}
-                    onLoaded={() => console.log('loaded')}/>
+                    onLoaded={() => console.log('loaded')}>
+                    
+                    <a className="btn">custom msg for {currentIndex}</a>
+                </Gallery>
             </div>
         );
     }
