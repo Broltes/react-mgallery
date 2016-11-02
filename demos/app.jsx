@@ -8,12 +8,18 @@ let imgs = [
     require('./img/2.jpg'),
     require('./img/3.jpg'),
     require('./img/4.jpg'),
+    require('./img/5.jpg'),
+    require('./img/1.jpg'),
+    require('./img/2.jpg'),
+    require('./img/3.jpg'),
+    require('./img/4.jpg'),
+    require('./img/5.jpg'),
 ];
 
 var App = React.createClass({
     getInitialState() {
         return {
-            currentIndex: 1
+            currentIndex: 0
         }
     },
     onIndexChange(currentIndex) {
@@ -31,7 +37,7 @@ var App = React.createClass({
                     onIndexChange={onIndexChange}
                     onLoading={() => console.log('loading')}
                     onLoaded={() => console.log('loaded')}>
-                    
+
                     <a className="btn">custom msg for {currentIndex}</a>
                 </Gallery>
             </div>

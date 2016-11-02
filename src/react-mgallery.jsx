@@ -216,7 +216,7 @@ export default React.createClass({
                     scalerY: 0,
                     x0: 0,
                 });
-                this.preLoadImg();
+                this.preLoadImg(nextIndex);
 
                 onIndexChange && onIndexChange(nextIndex);
             } else {
@@ -231,6 +231,8 @@ export default React.createClass({
     applyScale(destScale, bounds, transition) {
         const { imgData, currentIndex } = this.state;
         let item = imgData[currentIndex];
+        if(!item) return;
+
         let baseY = item.long ? item.h / 2 : _viewCenterPoint.y;
         let baseX = _viewCenterPoint.x;
 
@@ -259,11 +261,15 @@ export default React.createClass({
     },
 
     preLoadImg(index) {
-        const { currentIndex, lazyImgs } = this.state;
-        index = index || currentIndex;
+        const {
+            state: { currentIndex, lazyImgs, imgData },
+            props: { onLoading, imgs }
+        } = this;
+        index = index >= 0 ? index : currentIndex;
+        imgData[index] || onLoading();
 
         let _lazyImgs = {};
-        let nextIndex = Math.min(this.props.imgs.length - 1, index + 1);
+        let nextIndex = Math.min(imgs.length - 1, index + 1);
         let prevIndex = Math.max(0, index - 1);
 
         _lazyImgs[index] = 1;
@@ -280,8 +286,7 @@ export default React.createClass({
         // 记录图片初始尺寸
         let img = e.target;
         let { width, height, naturalWidth, naturalHeight } = img;
-        let fitH = _viewSize.w / naturalWidth * naturalHeight;// 适应屏幕宽度后的高度
-        let long = fitH > _viewSize.h;
+        let long = naturalHeight / naturalWidth > 2 && naturalHeight > _viewSize.h;
 
         width = Math.min(naturalWidth, _viewSize.w);
         height = width * naturalHeight / naturalWidth;
@@ -318,7 +323,7 @@ export default React.createClass({
 
                 <div className="mgallery-container" style={{
                         width: `${imgs.length * 100}%`,
-                        WebkitTransform: `translateX(${x0 - currentIndex * _viewSize.w}px)`
+                        WebkitTransform: `translate3d(${x0 - currentIndex * _viewSize.w}px,0,0)`
                     }}>
 
                     { imgs.map((img, i) => {
@@ -331,9 +336,9 @@ export default React.createClass({
                         return (
                             <div className={itemClass} key={i}>
                                 <div className="mgallery-scaler" style={style}>
-                                    { lazyImgs[i] ?
+                                    { lazyImgs[i] &&
                                         <img src={img} onLoad={(e) => imgLoaded(e, i)}/>
-                                    : null }
+                                    }
                                 </div>
                             </div>
                         );
@@ -341,9 +346,9 @@ export default React.createClass({
                 </div>
 
                 <div className="mgallery-dots">
-                    { imgs.length > 1 ? imgs.map((img, i) => {
-                        return <i key={i} className={i == currentIndex ? 'on' : ''}/>;
-                    }) : null }
+                    { imgs.length > 1 && (imgs.length < 7 ? imgs.map((img, i) =>
+                        <i key={i} className={i == currentIndex ? 'on' : ''}/>
+                    ) : `${currentIndex + 1} / ${imgs.length}` )}
                 </div>
 
                 {children}
@@ -353,7 +358,5 @@ export default React.createClass({
 
     componentWillMount() {
         this.preLoadImg();
-
-        this.props.onLoading();
     }
 });
